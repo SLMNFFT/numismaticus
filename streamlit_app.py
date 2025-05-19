@@ -80,15 +80,15 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### Coin Master (Image 1)")
-    img1_camera = st.camera_input("Take a picture (Image 1)")
-    img1_upload = st.file_uploader("Or upload image (Image 1)", type=["jpg", "jpeg", "png"], key="upload1")
+    img1_camera = st.camera_input("📷 Take a picture (Image 1)")
+    img1_upload = st.file_uploader("📁 Or upload image (Image 1)", type=["jpg", "jpeg", "png"], key="upload1")
 
 with col2:
     st.markdown("### Coin to Analyse (Image 2)")
-    img2_camera = st.camera_input("Take a picture (Image 2)")
-    img2_upload = st.file_uploader("Or upload image (Image 2)", type=["jpg", "jpeg", "png"], key="upload2")
+    img2_camera = st.camera_input("📷 Take a picture (Image 2)")
+    img2_upload = st.file_uploader("📁 Or upload image (Image 2)", type=["jpg", "jpeg", "png"], key="upload2")
 
-# Draw boxes on camera input images for preview
+# Helper function: draw preview
 def prepare_camera_preview(img_file):
     img_pil = Image.open(img_file).convert("RGB")
     np_img = np.array(img_pil)
@@ -96,6 +96,7 @@ def prepare_camera_preview(img_file):
     img_with_boxes = draw_boxes_pil(img_pil, boxes, classes)
     return img_with_boxes
 
+# Show previews
 if img1_camera:
     st.image(prepare_camera_preview(img1_camera), caption="Image 1 with Detected Objects", use_container_width=True)
 elif img1_upload:
@@ -106,7 +107,7 @@ if img2_camera:
 elif img2_upload:
     st.image(img2_upload, caption="Image 2 Uploaded", use_container_width=True)
 
-# Decide which inputs to use
+# Decide which images to compare
 img1_file = img1_camera or img1_upload
 img2_file = img2_camera or img2_upload
 
@@ -147,7 +148,7 @@ if img1_file and img2_file:
     boxes2, classes2 = detect_objects(np2)
 
     if len(classes1) != len(classes2) or not np.array_equal(np.sort(classes1), np.sort(classes2)):
-        st.error("Objects in the two images are not identical or matched.")
+        st.error("⚠️ Objects in the two images are not identical or matched.")
         st.stop()
 
     comparison_img = np2.copy()
@@ -168,7 +169,7 @@ if img1_file and img2_file:
             diff_count += 1
             object_id += 1
 
-    st.write(f"**Objects with Line/Curve Differences:** {diff_count}")
+    st.write(f"**Objects with Line/Curve Differences:** `{diff_count}`")
 
     st.subheader("🌀 Animation Toggle View")
     toggle = st.radio("View Mode", ["Original", "Difference Overlay"], horizontal=True)
@@ -178,4 +179,4 @@ if img1_file and img2_file:
         st.image(comparison_img, caption="Differences Highlighted (Red = Delta Edges)", use_container_width=True)
 
 else:
-    st.warning("Please provide images for BOTH 'Coin Master (Image 1)' AND 'Coin to Analyse (Image 2)'. You can either capture photos with your camera or upload files.")
+    st.warning("🚨 Please provide images for BOTH 'Coin Master (Image 1)' AND 'Coin to Analyse (Image 2)'.")
