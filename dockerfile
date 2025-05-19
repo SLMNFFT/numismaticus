@@ -13,10 +13,10 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 COPY . .
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "your_app.py"]
+CMD ["streamlit", "run", "streamlit_app.py"]
