@@ -5,10 +5,11 @@ from PIL import Image, ImageDraw, ImageFont
 from ultralytics import YOLO
 
 st.set_page_config(layout="wide")
-st.title("🔍 CYC 6.0 B- Check your Coin")
+st.title("🔍 CYC 6.0 B - Check your Coin")
 
 model = YOLO("yolov8n.pt")
 
+# --- Helper Functions ---
 def detect_objects(image_np):
     results = model.predict(image_np, verbose=False)
     boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -75,20 +76,24 @@ def overlay_diff_on_img(base_img, edge_diff, offset, color=(255, 0, 0)):
                     overlay[y_off + y, x_off + x] = color
     return overlay
 
-# --- Input Selection ---
+# --- UI ---
 col1, col2 = st.columns(2)
 
+# --- Coin Master (Image 1) ---
 with col1:
-    st.markdown("### Coin Master (Image 1)")
-    img1_camera = st.camera_input("📷 Take a picture (Image 1)")
-    img1_upload = st.file_uploader("📁 Or upload image (Image 1)", type=["jpg", "jpeg", "png"], key="upload1")
+    st.markdown("### 🧩 Coin Master (Image 1)")
+    use_camera1 = st.checkbox("📷 Take photo with camera (Image 1)")
+    img1_camera = st.camera_input("Take a picture (Image 1)", key="cam1") if use_camera1 else None
+    img1_upload = st.file_uploader("Or upload image (Image 1)", type=["jpg", "jpeg", "png"], key="upload1")
 
+# --- Coin to Analyse (Image 2) ---
 with col2:
-    st.markdown("### Coin to Analyse (Image 2)")
-    img2_camera = st.camera_input("📷 Take a picture (Image 2)")
-    img2_upload = st.file_uploader("📁 Or upload image (Image 2)", type=["jpg", "jpeg", "png"], key="upload2")
+    st.markdown("### 🔍 Coin to Analyse (Image 2)")
+    use_camera2 = st.checkbox("📷 Take photo with camera (Image 2)")
+    img2_camera = st.camera_input("Take a picture (Image 2)", key="cam2") if use_camera2 else None
+    img2_upload = st.file_uploader("Or upload image (Image 2)", type=["jpg", "jpeg", "png"], key="upload2")
 
-# Helper function: draw preview
+# --- Preview with boxes ---
 def prepare_camera_preview(img_file):
     img_pil = Image.open(img_file).convert("RGB")
     np_img = np.array(img_pil)
@@ -96,7 +101,6 @@ def prepare_camera_preview(img_file):
     img_with_boxes = draw_boxes_pil(img_pil, boxes, classes)
     return img_with_boxes
 
-# Show previews
 if img1_camera:
     st.image(prepare_camera_preview(img1_camera), caption="Image 1 with Detected Objects", use_container_width=True)
 elif img1_upload:
@@ -107,14 +111,13 @@ if img2_camera:
 elif img2_upload:
     st.image(img2_upload, caption="Image 2 Uploaded", use_container_width=True)
 
-# Decide which images to compare
+# --- Processing ---
 img1_file = img1_camera or img1_upload
 img2_file = img2_camera or img2_upload
 
 if img1_file and img2_file:
     img1 = Image.open(img1_file).convert("RGB")
     img2 = Image.open(img2_file).convert("RGB")
-
     img2 = img2.resize(img1.size)
 
     np1 = np.array(img1)
@@ -122,15 +125,11 @@ if img1_file and img2_file:
 
     st.subheader("🔍 Edge Detection Preview with Transparency")
 
-    edges1_rgba = create_full_edges_rgba(np1, (0, 255, 0))       # green edges
-    edges2_rgba = create_full_edges_rgba(np2, (255, 191, 0))     # amber edges
+    edges1_rgba = create_full_edges_rgba(np1, (0, 255, 0))       # green
+    edges2_rgba = create_full_edges_rgba(np2, (255, 191, 0))     # amber
 
-    gray1 = cv2.cvtColor(np1, cv2.COLOR_RGB2GRAY)
-    gray2 = cv2.cvtColor(np2, cv2.COLOR_RGB2GRAY)
-    blur1 = cv2.GaussianBlur(gray1, (3, 3), 0)
-    blur2 = cv2.GaussianBlur(gray2, (3, 3), 0)
-    edges1 = cv2.Canny(blur1, 30, 120)
-    edges2 = cv2.Canny(blur2, 30, 120)
+    edges1 = cv2.Canny(cv2.GaussianBlur(cv2.cvtColor(np1, cv2.COLOR_RGB2GRAY), (3, 3), 0), 30, 120)
+    edges2 = cv2.Canny(cv2.GaussianBlur(cv2.cvtColor(np2, cv2.COLOR_RGB2GRAY), (3, 3), 0), 30, 120)
     diff_edges = cv2.absdiff(edges1, edges2)
 
     combined_overlay = combine_edges_overlay(edges1_rgba, edges2_rgba, diff_edges)
@@ -148,7 +147,7 @@ if img1_file and img2_file:
     boxes2, classes2 = detect_objects(np2)
 
     if len(classes1) != len(classes2) or not np.array_equal(np.sort(classes1), np.sort(classes2)):
-        st.error("⚠️ Objects in the two images are not identical or matched.")
+        st.error("Objects in the two images are not identical or matched.")
         st.stop()
 
     comparison_img = np2.copy()
@@ -164,12 +163,12 @@ if img1_file and img2_file:
         total_diff = np.sum(diff)
         if total_diff > 0:
             comparison_img = overlay_diff_on_img(comparison_img, diff, offset2, color=(255, 0, 0))
-            cv2.putText(comparison_img, f"Obj-{object_id}", (offset2[0], offset2[1]-10),
+            cv2.putText(comparison_img, f"Obj-{object_id}", (offset2[0], offset2[1] - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             diff_count += 1
             object_id += 1
 
-    st.write(f"**Objects with Line/Curve Differences:** `{diff_count}`")
+    st.write(f"**Objects with Line/Curve Differences:** {diff_count}")
 
     st.subheader("🌀 Animation Toggle View")
     toggle = st.radio("View Mode", ["Original", "Difference Overlay"], horizontal=True)
@@ -177,6 +176,5 @@ if img1_file and img2_file:
         st.image(np2, caption="Original Image 2", use_container_width=True)
     else:
         st.image(comparison_img, caption="Differences Highlighted (Red = Delta Edges)", use_container_width=True)
-
 else:
-    st.warning("🚨 Please provide images for BOTH 'Coin Master (Image 1)' AND 'Coin to Analyse (Image 2)'.")
+    st.warning("Please provide images for BOTH 'Coin Master (Image 1)' AND 'Coin to Analyse (Image 2)'.")
